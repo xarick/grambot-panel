@@ -1,0 +1,31 @@
+# Secrets / environment
+.env
+.env.local
+**/.env
+!**/.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Node / frontend build
+node_modules/
+dist/
+
+# User uploads
+backend/media/
+
+# Logs
+*.log
+
+# OS / editor / local tooling
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/
+*.swp

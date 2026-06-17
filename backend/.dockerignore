@@ -1,0 +1,19 @@
+# Never ship the host virtualenv — its interpreter symlink points outside the
+# image and would clobber the one built during `uv sync`, breaking the container.
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Secrets and local data must not be baked into the image.
+.env
+media/
+
+# VCS / tooling noise
+.git/
+.gitignore
+.dockerignore
+*.log
+.DS_Store

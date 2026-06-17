@@ -1,0 +1,12 @@
+# Built inside the image — host copies would only bloat the build context
+# and can break `npm ci` with a foreign-arch node_modules.
+node_modules/
+dist/
+
+# Secrets / VCS / tooling noise
+.env
+.git/
+.gitignore
+.dockerignore
+*.log
+.DS_Store

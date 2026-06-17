@@ -1,0 +1,59 @@
+# Single-file stack. Plain HTTP by default — runs as-is for local / LAN testing:
+#     docker compose up -d --build        ->   http://<host>
+#
+# HTTPS is enabled by editing nginx/default.conf only — port 443 and the
+# certificate mounts below are already wired up, so no compose change is needed.
+# See README "Enabling HTTPS".
+#
+# PostgreSQL is EXTERNAL — not managed here. Point DATABASE_URL in
+# ../backend/.env at your database:
+#     - same host, outside Docker -> host.docker.internal:5432
+#     - managed / remote          -> its real host:5432
+services:
+
+  backend:
+    build: ../backend
+    restart: unless-stopped
+    env_file: ../backend/.env
+    environment:
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+    extra_hosts:
+      # Makes `host.docker.internal` resolve to the host, so DATABASE_URL can
+      # reach a Postgres running on the server itself. Harmless for a remote DB.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Persist broadcast media uploads across rebuilds/restarts.
+      - media:/app/media
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+
+  frontend:
+    build: ../frontend
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"   # unused until you enable HTTPS in nginx/default.conf
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      # Mounted up-front so enabling HTTPS needs no compose change. These paths
+      # are empty/unused until you obtain a certificate with certbot.
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    depends_on:
+      # service_started (not service_healthy) so nginx always comes up and can
+      # serve the ACME challenge / return 502 while the backend is still booting.
+      backend:
+        condition: service_started
+      frontend:
+        condition: service_started
+
+volumes:
+  media:

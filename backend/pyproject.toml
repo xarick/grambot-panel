@@ -1,0 +1,23 @@
+[project]
+name = "tg-panel-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]",
+    "uvicorn[standard]",
+    "sqlalchemy>=2.0",
+    "alembic",
+    "psycopg2-binary",
+    "passlib[bcrypt]",
+    "bcrypt<4.0.0",
+    "python-jose[cryptography]",
+    "python-telegram-bot",
+    "python-decouple",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/app"]

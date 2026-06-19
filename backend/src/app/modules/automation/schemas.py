@@ -6,7 +6,7 @@ from pydantic import BaseModel
 class AutoReplyCreate(BaseModel):
     bot_id: int
     keyword: str
-    response: str
+    responses: dict[str, str]  # {"uz": ..., "ru": ..., "en": ...}
     match_mode: str = "contains"
 
 
@@ -22,4 +22,4 @@ class AutoReplyOut(BaseModel):
 
 
 class WelcomeUpdate(BaseModel):
-    welcome_message: str
+    welcome: dict[str, str]  # {"uz": ..., "ru": ..., "en": ...}

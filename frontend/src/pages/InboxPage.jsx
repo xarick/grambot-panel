@@ -21,6 +21,12 @@ function formatDate(dateStr) {
   return d.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
+const LANG_LABELS = { uz: "🇺🇿 UZ", ru: "🇷🇺 RU", en: "🇬🇧 EN" };
+function langLabel(code) {
+  if (!code) return "";
+  return LANG_LABELS[code] || code.toUpperCase();
+}
+
 export function InboxPage() {
   const { botId } = useParams();
   const { t } = useTranslation();
@@ -143,6 +149,7 @@ function ChatPanel({ convId, t }) {
   const [showTemplates, setShowTemplates] = useState(false);
   const bottomRef = useRef(null);
   const lastIdRef = useRef(0);
+  const fileRef = useRef(null);
 
   useEffect(() => {
     convApi.get(convId).then(setConv);
@@ -193,6 +200,22 @@ function ChatPanel({ convId, t }) {
     }
   };
 
+  const sendPhoto = async (file) => {
+    if (!file) return;
+    setSending(true);
+    try {
+      const msg = await convApi.replyPhoto(convId, file, text.trim());
+      setMessages((prev) => [...prev, msg]);
+      lastIdRef.current = msg.id;
+      setText("");
+    } catch (err) {
+      alert(err.detail || "Failed to send image");
+    } finally {
+      setSending(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   const toggleBlock = async () => {
     if (!conv) return;
     await convApi.blockUser(convId, !conv.user.is_blocked);
@@ -213,7 +236,12 @@ function ChatPanel({ convId, t }) {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
         <div>
-          <div className="font-semibold text-gray-900 dark:text-gray-100">{conv.user.full_name}</div>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-gray-900 dark:text-gray-100">{conv.user.full_name}</span>
+            {langLabel(conv.user.language_code) && (
+              <span className="text-xs text-gray-500 dark:text-gray-400">{langLabel(conv.user.language_code)}</span>
+            )}
+          </div>
           {conv.user.username && (
             <div className="text-xs text-gray-500">@{conv.user.username}</div>
           )}
@@ -264,6 +292,24 @@ function ChatPanel({ convId, t }) {
             </svg>
           </Button>
           <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => sendPhoto(e.target.files?.[0])}
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => fileRef.current?.click()}
+            disabled={sending}
+            title={t("inbox.attach_image")}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </Button>
+          <input
             className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder={t("inbox.type_message")}
             value={text}
@@ -292,7 +338,12 @@ function MessageBubble({ msg }) {
       >
         {msg.message_type === "photo" && msg.file_id && (
           <a href={`/api/v1/messages/${msg.id}/file`} target="_blank" rel="noopener noreferrer">
-            <div className="mb-1 text-xs opacity-70">[Photo]</div>
+            <img
+              src={`/api/v1/messages/${msg.id}/file`}
+              alt="Photo"
+              loading="lazy"
+              className="mb-1 rounded-lg max-w-full max-h-64 object-contain"
+            />
           </a>
         )}
         {msg.message_type === "document" && msg.file_id && (

@@ -31,7 +31,7 @@ def add_reply(
     db: Session = Depends(get_db),
     _: User = Depends(require_superuser),
 ):
-    return create_auto_reply(db, body.bot_id, body.keyword, body.response, body.match_mode)
+    return create_auto_reply(db, body.bot_id, body.keyword, body.responses, body.match_mode)
 
 
 @router.delete("/auto-replies/{reply_id}", status_code=204)
@@ -50,7 +50,9 @@ def get_welcome(
     _: User = Depends(get_current_user),
 ):
     bot = get_bot_or_404(db, bot_id)
-    return {"bot_id": bot_id, "welcome_message": bot.welcome_message}
+    src = bot.welcome_i18n or {"uz": bot.welcome_message}
+    welcome = {lang: src.get(lang, "") for lang in ("uz", "ru", "en")}
+    return {"bot_id": bot_id, "welcome": welcome}
 
 
 @router.put("/welcome")
@@ -60,5 +62,5 @@ def put_welcome(
     db: Session = Depends(get_db),
     _: User = Depends(require_superuser),
 ):
-    bot = set_welcome_message(db, bot_id, body.welcome_message)
-    return {"bot_id": bot_id, "welcome_message": bot.welcome_message}
+    bot = set_welcome_message(db, bot_id, body.welcome)
+    return {"bot_id": bot_id, "welcome": bot.welcome_i18n}

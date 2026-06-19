@@ -101,6 +101,7 @@ export default {
   "inbox.unblock": "Unblock user",
   "inbox.blocked": "Blocked",
   "inbox.templates": "Templates",
+  "inbox.attach_image": "Attach image",
   "inbox.load_more": "Load older messages",
   "inbox.tag": "Tag",
 

@@ -16,8 +16,21 @@ def get_by_id(db: Session, reply_id: int) -> AutoReply | None:
     return db.query(AutoReply).filter(AutoReply.id == reply_id).first()
 
 
-def create(db: Session, bot_id: int, keyword: str, response: str, match_mode: str) -> AutoReply:
-    row = AutoReply(bot_id=bot_id, keyword=keyword, response=response, match_mode=match_mode)
+def create(
+    db: Session,
+    bot_id: int,
+    keyword: str,
+    response: str,
+    match_mode: str,
+    response_i18n: dict | None = None,
+) -> AutoReply:
+    row = AutoReply(
+        bot_id=bot_id,
+        keyword=keyword,
+        response=response,
+        match_mode=match_mode,
+        response_i18n=response_i18n,
+    )
     db.add(row)
     db.commit()
     db.refresh(row)

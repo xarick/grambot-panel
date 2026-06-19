@@ -10,6 +10,7 @@ class TelegramUserOut(BaseModel):
     first_name: str
     last_name: str
     full_name: str
+    language_code: str
     is_blocked: bool
 
     model_config = {"from_attributes": True}

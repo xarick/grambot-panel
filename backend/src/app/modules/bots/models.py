@@ -22,6 +22,9 @@ class TelegramBot(Base):
     webhook_secret: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     webhook_base_url: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     welcome_message: Mapped[str] = mapped_column(String(4096), default="", nullable=False)
+    # Per-language welcome text {"uz": ..., "ru": ..., "en": ...}; welcome_message
+    # above stays as the default-language value and fallback.
+    welcome_i18n: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc), nullable=False)
 
     users: Mapped[list["TelegramUser"]] = relationship(back_populates="bot", cascade="all, delete-orphan")

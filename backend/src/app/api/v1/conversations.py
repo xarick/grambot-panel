@@ -1,6 +1,7 @@
 import io
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -22,6 +23,7 @@ from app.modules.conversations.service import (
     get_messages,
     list_conversations,
     reply,
+    reply_photo,
     update_conversation,
 )
 from app.modules.users.models import User
@@ -92,11 +94,33 @@ def send_reply(
     return MessageOut.model_validate(msg)
 
 
+@router.post("/conversations/{conv_id}/reply-photo", response_model=MessageOut)
+async def send_reply_photo(
+    conv_id: int,
+    file: UploadFile = File(...),
+    caption: str = Form(default=""),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    content = await file.read()
+    # reply_photo() uses asyncio.run() internally, which can't run inside this
+    # async request's event loop — offload it to a worker thread (same as how
+    # FastAPI runs the sync text-reply endpoint).
+    msg = await run_in_threadpool(reply_photo, db, conv_id, content, caption, user.id)
+    return MessageOut.model_validate(msg)
+
+
 @router.get("/messages/{msg_id}/file")
 def download_file(msg_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     content, filename, media_type = get_file(db, msg_id)
+    # Strip characters that could break out of the header; nosniff stops the
+    # browser from re-interpreting the bytes as executable HTML/JS.
+    safe_name = filename.translate({ord(c): None for c in '"\\\r\n'})
     return StreamingResponse(
         io.BytesIO(content),
         media_type=media_type,
-        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        headers={
+            "Content-Disposition": f'inline; filename="{safe_name}"',
+            "X-Content-Type-Options": "nosniff",
+        },
     )

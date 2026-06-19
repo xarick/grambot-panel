@@ -101,6 +101,7 @@ export default {
   "inbox.unblock": "Blokdan chiqarish",
   "inbox.blocked": "Bloklangan",
   "inbox.templates": "Shablonlar",
+  "inbox.attach_image": "Rasm biriktirish",
   "inbox.load_more": "Eski xabarlarni yuklash",
   "inbox.tag": "Teg",
 

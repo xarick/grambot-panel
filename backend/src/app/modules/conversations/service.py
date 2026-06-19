@@ -1,4 +1,5 @@
 import asyncio
+import io
 import mimetypes
 import os
 
@@ -11,6 +12,25 @@ from app.modules.bots import repository as bot_repo
 from app.modules.conversations import repository
 from app.modules.conversations.models import Conversation, Message
 from app.modules.conversations.schemas import ConversationListOut, ConversationOut, MessageListOut, MessageOut
+
+MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+# Magic-byte signatures for the only raster image formats we let an operator
+# send. Validation is content-based (not by filename/MIME), so a renamed binary
+# can't slip through.
+_IMAGE_SIGNATURES = (
+    b"\xff\xd8\xff",       # JPEG
+    b"\x89PNG\r\n\x1a\n",  # PNG
+    b"GIF87a",             # GIF
+    b"GIF89a",             # GIF
+    b"BM",                 # BMP
+)
+
+
+def _is_allowed_image(content: bytes) -> bool:
+    if content[:4] == b"RIFF" and content[8:12] == b"WEBP":  # WebP
+        return True
+    return any(content.startswith(sig) for sig in _IMAGE_SIGNATURES)
 
 
 def list_conversations(
@@ -86,6 +106,13 @@ async def _send_message_async(token: str, chat_id: int, text: str) -> int:
         return sent_msg.message_id
 
 
+async def _send_photo_async(token: str, chat_id: int, content: bytes, caption: str) -> tuple[int, str]:
+    async with telegram.Bot(token=token) as bot:
+        sent = await bot.send_photo(chat_id=chat_id, photo=io.BytesIO(content), caption=caption or None)
+        file_id = sent.photo[-1].file_id if sent.photo else ""
+        return sent.message_id, file_id
+
+
 async def _download_file_async(token: str, file_id: str) -> tuple[bytes, str]:
     async with telegram.Bot(token=token) as bot:
         file = await bot.get_file(file_id)
@@ -111,6 +138,44 @@ def reply(db: Session, conv_id: int, text: str, sent_by_id: int) -> Message:
         direction="outgoing",
         text=text,
         message_type="text",
+        telegram_message_id=tg_msg_id,
+        sent_by_id=sent_by_id,
+    )
+    repository.touch_conversation(db, conv)
+    return msg
+
+
+def reply_photo(db: Session, conv_id: int, content: bytes, caption: str, sent_by_id: int) -> Message:
+    """Send an operator-supplied image to the Telegram user. The upload is
+    validated as a real image by its magic bytes (not its filename) and capped
+    in size; Telegram then re-encodes it, so nothing executable is forwarded."""
+    if not content:
+        raise ForbiddenError("Empty file")
+    if len(content) > MAX_IMAGE_BYTES:
+        raise ForbiddenError("Image too large (max 10 MB)")
+    if not _is_allowed_image(content):
+        raise ForbiddenError("Only image files are allowed")
+
+    conv = get_conversation(db, conv_id)
+    bot_row = bot_repo.get_by_id(db, conv.bot_id)
+    if not bot_row or not bot_row.is_active:
+        raise ForbiddenError("Bot is not active")
+
+    tg_user = conv.user
+    try:
+        tg_msg_id, file_id = asyncio.run(
+            _send_photo_async(bot_row.token, tg_user.telegram_id, content, caption)
+        )
+    except Exception as e:
+        raise ForbiddenError(f"Failed to send photo: {e}")
+
+    msg = repository.create_message(
+        db,
+        conversation_id=conv_id,
+        direction="outgoing",
+        text=caption,
+        message_type="photo",
+        file_id=file_id,
         telegram_message_id=tg_msg_id,
         sent_by_id=sent_by_id,
     )

@@ -101,6 +101,7 @@ export default {
   "inbox.unblock": "Разблокировать",
   "inbox.blocked": "Заблокирован",
   "inbox.templates": "Шаблоны",
+  "inbox.attach_image": "Прикрепить изображение",
   "inbox.load_more": "Загрузить старые",
   "inbox.tag": "Метка",
 

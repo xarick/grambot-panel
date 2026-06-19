@@ -5,11 +5,43 @@ import { Modal } from "@/components/ui/Modal.jsx";
 import { Button } from "@/components/ui/Button.jsx";
 import { Input, Textarea, Select } from "@/components/ui/Input.jsx";
 
+const LANGS = [
+  ["uz", "🇺🇿 O'zbekcha"],
+  ["ru", "🇷🇺 Русский"],
+  ["en", "🇬🇧 English"],
+];
+
+const EMPTY_I18N = { uz: "", ru: "", en: "" };
+
+// A label plus one textarea per supported language; `value` is a {uz,ru,en}
+// object and `onChange(lang, text)` updates a single language.
+function I18nTextarea({ label, value, onChange, rows = 2, placeholder }) {
+  return (
+    <div>
+      {label && (
+        <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</div>
+      )}
+      <div className="space-y-2">
+        {LANGS.map(([code, name]) => (
+          <Textarea
+            key={code}
+            label={name}
+            rows={rows}
+            value={value[code] || ""}
+            placeholder={placeholder}
+            onChange={(e) => onChange(code, e.target.value)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function AutomationModal({ bot, open, onClose }) {
   const { t } = useTranslation();
-  const [welcome, setWelcomeText] = useState("");
+  const [welcome, setWelcomeText] = useState(EMPTY_I18N);
   const [replies, setReplies] = useState([]);
-  const [draft, setDraft] = useState({ keyword: "", response: "", match_mode: "contains" });
+  const [draft, setDraft] = useState({ keyword: "", responses: EMPTY_I18N, match_mode: "contains" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [savedOk, setSavedOk] = useState(false);
@@ -18,7 +50,7 @@ export function AutomationModal({ bot, open, onClose }) {
     if (!open || !bot) return;
     setError("");
     setSavedOk(false);
-    automationApi.getWelcome(bot.id).then((d) => setWelcomeText(d.welcome_message || "")).catch(() => {});
+    automationApi.getWelcome(bot.id).then((d) => setWelcomeText({ ...EMPTY_I18N, ...(d.welcome || {}) })).catch(() => {});
     automationApi.listReplies(bot.id).then(setReplies).catch(() => {});
   }, [open, bot]);
 
@@ -36,12 +68,13 @@ export function AutomationModal({ bot, open, onClose }) {
   };
 
   const addReply = async () => {
-    if (!draft.keyword.trim() || !draft.response.trim()) return;
+    const hasResponse = Object.values(draft.responses).some((v) => v.trim());
+    if (!draft.keyword.trim() || !hasResponse) return;
     setBusy(true);
     setError("");
     try {
       await automationApi.createReply({ bot_id: bot.id, ...draft });
-      setDraft({ keyword: "", response: "", match_mode: "contains" });
+      setDraft({ keyword: "", responses: EMPTY_I18N, match_mode: "contains" });
       setReplies(await automationApi.listReplies(bot.id));
     } catch (e) {
       setError(e.detail || t("common.error"));
@@ -59,12 +92,12 @@ export function AutomationModal({ bot, open, onClose }) {
     <Modal open={open} onClose={onClose} title={`${t("automation.title")} — ${bot?.name || ""}`} size="lg">
       <div className="space-y-5">
         <div>
-          <Textarea
+          <I18nTextarea
             label={t("automation.welcome")}
             rows={3}
             value={welcome}
             placeholder={t("automation.welcome_ph")}
-            onChange={(e) => { setWelcomeText(e.target.value); setSavedOk(false); }}
+            onChange={(code, val) => { setWelcomeText((w) => ({ ...w, [code]: val })); setSavedOk(false); }}
           />
           <div className="mt-2 flex items-center gap-3">
             <Button size="sm" onClick={saveWelcome} disabled={busy}>{t("automation.save_welcome")}</Button>
@@ -110,11 +143,11 @@ export function AutomationModal({ bot, open, onClose }) {
             </Select>
           </div>
           <div className="mt-2">
-            <Textarea
+            <I18nTextarea
               label={t("automation.response")}
               rows={2}
-              value={draft.response}
-              onChange={(e) => setDraft((d) => ({ ...d, response: e.target.value }))}
+              value={draft.responses}
+              onChange={(code, val) => setDraft((d) => ({ ...d, responses: { ...d.responses, [code]: val } }))}
             />
           </div>
           {error && <p className="text-sm text-red-500 mt-2">{error}</p>}

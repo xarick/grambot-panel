@@ -1,4 +1,4 @@
-import { request } from "./client.js";
+import { request, upload } from "./client.js";
 
 export const listByBot = (botId, { tag, search, limit = 50, offset = 0 } = {}) => {
   const params = new URLSearchParams();
@@ -21,6 +21,13 @@ export const getMessages = (id, after = 0, before = 0) => {
 };
 
 export const reply = (id, text) => request("POST", `/conversations/${id}/reply`, { text });
+
+export const replyPhoto = (id, file, caption = "") => {
+  const fd = new FormData();
+  fd.append("file", file);
+  if (caption) fd.append("caption", caption);
+  return upload(`/conversations/${id}/reply-photo`, fd);
+};
 
 export const blockUser = (id, isBlocked) =>
   request("PATCH", `/conversations/${id}/block`, { is_blocked: isBlocked });

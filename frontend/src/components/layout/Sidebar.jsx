@@ -113,7 +113,7 @@ export function Sidebar() {
             itone.uz
           </span>
         </a>
-        <p className="mt-1 text-center text-[10px] tracking-wide text-gray-300 dark:text-gray-700">v1.0.0</p>
+        <p className="mt-1 text-center text-[10px] tracking-wide text-gray-300 dark:text-gray-700">v1.0.2</p>
       </div>
     </aside>
   );
